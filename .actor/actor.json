@@ -1,0 +1,87 @@
+{
+    "actorSpecification": 1,
+    "name": "tiktok-channel-downloader",
+    "title": "TikTok Channel Downloader",
+    "version": "0.1",
+    "buildTag": "latest",
+    "defaultRunOptions": {
+        "timeoutSecs": 3600,
+        "memoryMbytes": 2048
+    },
+    "input": "./input_schema.json",
+    "storages": {
+        "dataset": {
+            "actorSpecification": 1,
+            "title": "TikTok Videos",
+            "views": {
+                "table": {
+                    "title": "Table",
+                    "transformation": {
+                        "fields": [
+                            "videoId",
+                            "username",
+                            "description",
+                            "date",
+                            "views",
+                            "likes",
+                            "comments",
+                            "shares",
+                            "musicTitle",
+                            "url",
+                            "mp4StorageUrl",
+                            "thumbnailStorageUrl"
+                        ]
+                    },
+                    "display": {
+                        "component": "table",
+                        "properties": {
+                            "videoId": {
+                                "label": "Video ID"
+                            },
+                            "username": {
+                                "label": "Username"
+                            },
+                            "description": {
+                                "label": "Description"
+                            },
+                            "date": {
+                                "label": "Date"
+                            },
+                            "views": {
+                                "label": "Views",
+                                "format": "number"
+                            },
+                            "likes": {
+                                "label": "Likes",
+                                "format": "number"
+                            },
+                            "comments": {
+                                "label": "Comments",
+                                "format": "number"
+                            },
+                            "shares": {
+                                "label": "Shares",
+                                "format": "number"
+                            },
+                            "musicTitle": {
+                                "label": "Music Title"
+                            },
+                            "url": {
+                                "label": "Video URL",
+                                "format": "link"
+                            },
+                            "mp4StorageUrl": {
+                                "label": "MP4 Storage URL",
+                                "format": "link"
+                            },
+                            "thumbnailStorageUrl": {
+                                "label": "Thumbnail Storage URL",
+                                "format": "link"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
