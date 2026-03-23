@@ -1,0 +1,42 @@
+{
+    "title": "TikTok Channel Downloader Input",
+    "description": "Input schema for the TikTok Channel Downloader actor.",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "username": {
+            "title": "TikTok Username",
+            "type": "string",
+            "description": "TikTok username to scrape (with or without the leading @).",
+            "editor": "textfield",
+            "prefill": "charlidamelio"
+        },
+        "maxVideos": {
+            "title": "Max Videos",
+            "type": "integer",
+            "description": "Maximum number of videos to scrape from the channel.",
+            "default": 20,
+            "minimum": 1,
+            "maximum": 500
+        },
+        "downloadMp4": {
+            "title": "Download MP4",
+            "type": "boolean",
+            "description": "Download and store the MP4 video file in the Apify key-value store.",
+            "default": true
+        },
+        "downloadThumbnail": {
+            "title": "Download Thumbnail",
+            "type": "boolean",
+            "description": "Download and store the thumbnail image in the Apify key-value store.",
+            "default": true
+        },
+        "headless": {
+            "title": "Headless Mode",
+            "type": "boolean",
+            "description": "Run Chromium in headless mode (disable for debugging).",
+            "default": true
+        }
+    },
+    "required": ["username"]
+}
