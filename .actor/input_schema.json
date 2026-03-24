@@ -1,9 +1,8 @@
 {
-    "actorInputSchemaVersion": 1,
+    "schemaVersion": 1,
     "title": "TikTok Video Scraper & Downloader",
     "description": "Scrape and download videos from one or more TikTok profiles.",
     "type": "object",
-    "schemaVersion": 1,
     "properties": {
         "profileUrls": {
             "title": "TikTok Profile URLs",
