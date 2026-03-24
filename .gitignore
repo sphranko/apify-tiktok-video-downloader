@@ -13,6 +13,14 @@ apify_storage/
 *.log
 npm-debug.log*
 
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+
 # OS / editor artifacts
 .DS_Store
 .idea/
