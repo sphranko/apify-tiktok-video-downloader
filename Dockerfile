@@ -1,10 +1,18 @@
-FROM apify/actor-python-playwright:3.12
+# Base image: Apify's Node.js 18 image with Playwright + Chromium pre-installed.
+# See: https://hub.docker.com/r/apify/actor-node-playwright-chrome
+FROM apify/actor-node-playwright-chrome:18
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
-RUN playwright install chromium
-RUN playwright install-deps chromium
+# Copy dependency manifest first to leverage Docker layer caching.
+COPY package*.json ./
 
+# Install Node dependencies.
+# --omit=dev keeps the image lean; Playwright browser binaries are already
+# bundled in the base image so we skip the post-install download step.
+RUN npm install --omit=dev && \
+    echo "Dependencies installed."
+
+# Copy the rest of the actor source code.
 COPY . ./
 
-CMD ["python", "-m", "src.main"]
+# Default command executed when the container starts.
+CMD ["node", "src/main.js"]

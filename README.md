@@ -1,131 +1,172 @@
-# TikTok Channel Downloader — Apify Actor
+# TikTok Video Scraper & Downloader — Apify Actor
 
-An Apify Actor that scrapes and downloads TikTok videos from any public user channel.
+An [Apify Actor](https://apify.com/actors) that scrapes TikTok user profiles,
+collects video metadata, and optionally downloads each video as an **MP4 file**
+saved directly to [Apify Key-Value Store](https://docs.apify.com/platform/storage/key-value-store).
 
 ---
 
-## How It Works
+## Features
 
-1. **Read input** — the actor reads the target `username`, `maxVideos`, and media download flags from the Apify input.
-2. **Launch Chromium** — Playwright starts a Chromium browser with anti-bot settings (no sandbox, `AutomationControlled` disabled).
-3. **Intercept API responses** — a network listener captures TikTok's internal `item_list` API calls to collect rich video metadata (stats, music, CDN URLs) before any individual video page is visited.
-4. **Scroll the channel feed** — the actor scrolls `https://www.tiktok.com/@{username}` and collects unique video URLs until `maxVideos` is reached or the end of the feed is detected.
-5. **Scrape each video** — for every URL, the actor navigates to the video page, merges API-intercepted data with DOM fallbacks, and builds a structured result record.
-6. **Download media (optional)** — if `downloadMp4` or `downloadThumbnail` is enabled the actor fetches the binary data with `httpx` and stores it in the Apify key-value store.
-7. **Push to dataset** — each result record is pushed to the Apify dataset and the public CDN URLs for any stored files are included in the record.
+- Scrape one or more TikTok profile pages in a single run
+- Configurable **limit** (default: 10 videos per profile)
+- Configurable **sort order** — newest-first (`desc`) or oldest-first (`asc`)
+- Optional MP4 **download**: files are saved to Apify storage and their public
+  URL is included in the dataset output
+- Resilient extraction: tries both `SIGI_STATE` and `__UNIVERSAL_DATA_STORE__`
+  embedded page state, with XHR interception as a fallback
 
 ---
 
 ## Input
 
-| Field | Type | Default | Required | Description |
-|---|---|---|---|---|
-| `username` | string | — | **yes** | TikTok username to scrape (with or without `@`) |
-| `maxVideos` | integer | `20` | no | Maximum number of videos to scrape (1–500) |
-| `downloadMp4` | boolean | `true` | no | Download and store the MP4 file in the key-value store |
-| `downloadThumbnail` | boolean | `true` | no | Download and store the thumbnail image in the key-value store |
-| `headless` | boolean | `true` | no | Run Chromium in headless mode |
+Configure the actor via the Apify Console or pass a JSON input directly.
+
+| Field            | Type       | Default  | Description |
+|------------------|------------|----------|-------------|
+| `profileUrls`    | `string[]` | —        | **Required.** TikTok profile URLs (e.g. `https://www.tiktok.com/@username`) |
+| `limit`          | `integer`  | `10`     | Maximum number of videos per profile (1–100) |
+| `order`          | `string`   | `"desc"` | Sort order: `"desc"` = newest first, `"asc"` = oldest first |
+| `downloadVideos` | `boolean`  | `true`   | Download MP4 files to Apify Key-Value Store |
+
+### Example input
+
+```json
+{
+    "profileUrls": [
+        "https://www.tiktok.com/@tiktok"
+    ],
+    "limit": 5,
+    "order": "desc",
+    "downloadVideos": true
+}
+```
 
 ---
 
 ## Output
 
-### Dataset record example
+Results are pushed to the **Apify Dataset**. Each record contains:
 
-```json
+```jsonc
 {
-  "videoId": "7380123456789012345",
-  "url": "https://www.tiktok.com/@charlidamelio/video/7380123456789012345",
-  "username": "charlidamelio",
-  "description": "wait for it 😭 #fyp",
-  "date": "2024-05-15",
-  "likes": 1200000,
-  "comments": 4500,
-  "shares": 32000,
-  "views": 18500000,
-  "musicTitle": "original sound - charli d'amelio",
-  "musicAuthor": "charlidamelio",
-  "videoPlayUrl": "https://v19-webapp.tiktok.com/...",
-  "thumbnailUrl": "https://p16-sign.tiktokcdn-us.com/...",
-  "mp4StorageUrl": "https://api.apify.com/v2/key-value-stores/<store-id>/records/video_7380123456789012345.mp4",
-  "thumbnailStorageUrl": "https://api.apify.com/v2/key-value-stores/<store-id>/records/thumb_7380123456789012345.jpg",
-  "scrapedAt": "2024-05-20T10:30:00.123456Z"
+    "id": "7380123456789012345",
+    "description": "Video caption text",
+    "createTime": 1714000000,
+    "url": "https://www.tiktok.com/@tiktok/video/7380123456789012345",
+    "author": {
+        "id": "107955",
+        "uniqueId": "tiktok",
+        "nickname": "TikTok"
+    },
+    "video": {
+        "playUrl":     "https://v19-webapp.tiktok.com/...",
+        "downloadUrl": "https://v19-webapp.tiktok.com/...",
+        "cover":       "https://p16-sign.tiktokcdn-us.com/...",
+        "duration":    15,
+        "width":       576,
+        "height":      1024
+    },
+    "stats": {
+        "plays":    1000000,
+        "likes":    50000,
+        "comments": 1200,
+        "shares":   800
+    },
+    // Only present when downloadVideos is true and the download succeeded:
+    "storageKey": "video-7380123456789012345.mp4",
+    "storageUrl": "https://api.apify.com/v2/key-value-stores/<storeId>/records/video-7380123456789012345.mp4"
 }
 ```
 
-### Key-value store key patterns
-
-| Pattern | Content |
-|---|---|
-| `video_{videoId}.mp4` | Downloaded MP4 video file |
-| `thumb_{videoId}.jpg` | Downloaded thumbnail image |
+The `storageUrl` is a direct link to stream or download the MP4 file.
 
 ---
 
-## Deploy to Apify
+## Project structure
 
-### Option A — Apify CLI
+```
+.actor/
+  actor.json          ← Actor metadata & dataset view
+  input_schema.json   ← Input schema (rendered as a form in Apify Console)
+src/
+  main.js             ← Entry point: input validation & orchestration
+  scraper.js          ← Playwright-based profile scraper
+  downloader.js       ← HTTP MP4 downloader (axios)
+Dockerfile            ← Based on apify/actor-node-playwright-chrome:18
+package.json
+```
+
+---
+
+## Running locally
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) ≥ 18
+- [Apify CLI](https://docs.apify.com/cli/) — `npm install -g apify-cli`
+
+### Steps
 
 ```bash
+# 1. Clone the repository
+git clone https://github.com/sphranko/apify-tiktok-video-downloader.git
+cd apify-tiktok-video-downloader
+
+# 2. Install dependencies
+npm install
+
+# 3. Log in to Apify (required for storage)
 apify login
+
+# 4. Create a local input file
+mkdir -p storage/key_value_stores/default
+cat > storage/key_value_stores/default/INPUT.json << 'EOF'
+{
+    "profileUrls": ["https://www.tiktok.com/@tiktok"],
+    "limit": 3,
+    "order": "desc",
+    "downloadVideos": false
+}
+EOF
+
+# 5. Run the actor
+apify run
+```
+
+Downloaded MP4 files and dataset records will appear under `storage/` when
+running locally.
+
+---
+
+## Deploying to Apify
+
+```bash
+# Push the actor to your Apify account and build it
 apify push
 ```
 
-### Option B — GitHub integration
-
-1. Go to [apify.com](https://apify.com) → **Actors** → **Create new Actor**.
-2. Choose **Link GitHub repository**.
-3. Point to `sphranko/apify-tiktok-video-downloader`.
-4. Apify will automatically build the Docker image on every push.
+After a successful push you can run the actor from the
+[Apify Console](https://console.apify.com).
 
 ---
 
-## Local Development
+## Notes & limitations
 
-```bash
-# Install Python dependencies
-pip install -r requirements.txt
-
-# Install Playwright browser
-playwright install chromium
-
-# Run the actor locally (Apify SDK will read input from storage/key_value_stores/default/INPUT.json)
-APIFY_IS_AT_HOME=0 python -m src.main
-```
-
-Create `storage/key_value_stores/default/INPUT.json` with your test input:
-
-```json
-{
-  "username": "charlidamelio",
-  "maxVideos": 5,
-  "downloadMp4": false,
-  "downloadThumbnail": false
-}
-```
+- **TikTok anti-bot measures**: TikTok periodically updates its front-end and
+  CDN signing logic. If scraping stops working, the page-state selectors or
+  download headers in `src/scraper.js` / `src/downloader.js` may need updating.
+- **Download URL expiry**: TikTok CDN URLs are time-limited. The actor downloads
+  each file immediately after scraping to avoid expiry.
+- **Sort order & deep pagination**: `"asc"` order works by fetching up to
+  `limit × 2` videos (newest first, as TikTok provides), then reversing. For
+  very large profiles this may not reach the oldest videos; increase `limit`
+  accordingly.
+- **Rate limiting**: Running the actor against many profiles in rapid succession
+  may trigger TikTok's rate limiter. Consider adding delays between runs.
 
 ---
 
-## Project Structure
+## License
 
-```
-apify-tiktok-video-downloader/
-├── .actor/
-│   ├── actor.json           # Actor manifest (name, version, dataset view)
-│   └── input_schema.json    # Input form schema for Apify Console
-├── src/
-│   ├── __init__.py          # Package init
-│   └── main.py              # All scraping logic
-├── Dockerfile               # Apify-compatible Docker build
-├── requirements.txt         # Python dependencies
-└── README.md                # This file
-```
-
----
-
-## Important Notes
-
-- **Anti-bot measures** — TikTok actively detects automated traffic. The actor uses a realistic Chrome user-agent, disables the `AutomationControlled` flag, and mimics human scroll behaviour, but TikTok may still block requests. Consider using [Apify residential proxies](https://docs.apify.com/platform/proxy) for improved reliability.
-- **Residential proxies** — For production use, configure `proxyConfiguration` using the Apify Proxy to route requests through residential IPs. TikTok rarely serves content to datacenter IPs.
-- **MP4 URL expiry** — TikTok CDN URLs for video files are time-limited (typically a few hours). The actor downloads and stores the binary immediately during the run; do not rely on `videoPlayUrl` being valid after the run completes.
-- **TikTok Terms of Service** — Only use this actor to scrape publicly available content in accordance with TikTok's [Terms of Service](https://www.tiktok.com/legal/page/row/terms-of-service/en). The actor is intended for personal research and analysis only. Respect rate limits and do not use scraped data for commercial purposes without appropriate authorisation.
+MIT

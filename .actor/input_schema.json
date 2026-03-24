@@ -1,42 +1,41 @@
 {
-    "title": "TikTok Channel Downloader Input",
-    "description": "Input schema for the TikTok Channel Downloader actor.",
+    "actorInputSchemaVersion": 1,
+    "title": "TikTok Video Scraper & Downloader",
+    "description": "Scrape and download videos from one or more TikTok profiles.",
     "type": "object",
     "schemaVersion": 1,
     "properties": {
-        "username": {
-            "title": "TikTok Username",
-            "type": "string",
-            "description": "TikTok username to scrape (with or without the leading @).",
-            "editor": "textfield",
-            "prefill": "charlidamelio"
+        "profileUrls": {
+            "title": "TikTok Profile URLs",
+            "type": "array",
+            "description": "One or more TikTok profile URLs to scrape (e.g. https://www.tiktok.com/@username).",
+            "editor": "stringList",
+            "prefill": [
+                "https://www.tiktok.com/@tiktok"
+            ]
         },
-        "maxVideos": {
-            "title": "Max Videos",
+        "limit": {
+            "title": "Video Limit",
             "type": "integer",
-            "description": "Maximum number of videos to scrape from the channel.",
-            "default": 20,
+            "description": "Maximum number of videos to retrieve per profile. Defaults to 10.",
+            "default": 10,
             "minimum": 1,
-            "maximum": 500
+            "maximum": 100
         },
-        "downloadMp4": {
-            "title": "Download MP4",
-            "type": "boolean",
-            "description": "Download and store the MP4 video file in the Apify key-value store.",
-            "default": true
+        "order": {
+            "title": "Sort Order",
+            "type": "string",
+            "description": "'desc' returns the newest videos first; 'asc' returns the oldest videos first. Defaults to 'desc'.",
+            "enum": ["desc", "asc"],
+            "enumTitles": ["Newest first (desc)", "Oldest first (asc)"],
+            "default": "desc"
         },
-        "downloadThumbnail": {
-            "title": "Download Thumbnail",
+        "downloadVideos": {
+            "title": "Download Videos",
             "type": "boolean",
-            "description": "Download and store the thumbnail image in the Apify key-value store.",
-            "default": true
-        },
-        "headless": {
-            "title": "Headless Mode",
-            "type": "boolean",
-            "description": "Run Chromium in headless mode (disable for debugging).",
+            "description": "When enabled, each MP4 is downloaded and saved to the Apify Key-Value Store. The public URL is added to the dataset record as 'storageUrl'.",
             "default": true
         }
     },
-    "required": ["username"]
+    "required": ["profileUrls"]
 }

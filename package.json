@@ -1,0 +1,18 @@
+{
+    "name": "tiktok-video-scraper-downloader",
+    "version": "1.0.0",
+    "type": "module",
+    "description": "Apify Actor that scrapes TikTok user profiles and downloads videos as MP4 files.",
+    "main": "src/main.js",
+    "scripts": {
+        "start": "node src/main.js"
+    },
+    "dependencies": {
+        "apify": "^3.2.2",
+        "crawlee": "^3.10.0",
+        "axios": "^1.7.2"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}

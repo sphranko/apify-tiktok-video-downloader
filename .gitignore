@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Apify local storage (created when running the actor locally with `apify run`)
+storage/
+apify_storage/
+
+# Environment variables
+.env
+.env.*
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor artifacts
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo

@@ -1,83 +1,37 @@
 {
     "actorSpecification": 1,
-    "name": "tiktok-channel-downloader",
-    "title": "TikTok Channel Downloader",
-    "version": "0.1",
+    "name": "tiktok-video-scraper-downloader",
+    "title": "TikTok Video Scraper & Downloader",
+    "description": "Scrapes TikTok user profiles to collect video metadata and optionally downloads MP4 files to Apify Key-Value Store.",
+    "version": "1.0",
     "buildTag": "latest",
-    "defaultRunOptions": {
-        "timeoutSecs": 3600,
-        "memoryMbytes": 2048
-    },
-    "input": "./input_schema.json",
+    "dockerfile": "../Dockerfile",
+    "input": "../.actor/input_schema.json",
     "storages": {
         "dataset": {
             "actorSpecification": 1,
-            "title": "TikTok Videos",
             "views": {
-                "table": {
-                    "title": "Table",
+                "overview": {
+                    "title": "Videos Overview",
                     "transformation": {
                         "fields": [
-                            "videoId",
-                            "username",
+                            "id",
                             "description",
-                            "date",
-                            "views",
-                            "likes",
-                            "comments",
-                            "shares",
-                            "musicTitle",
+                            "createTime",
+                            "author",
+                            "stats",
                             "url",
-                            "mp4StorageUrl",
-                            "thumbnailStorageUrl"
+                            "storageUrl"
                         ]
                     },
                     "display": {
                         "component": "table",
                         "properties": {
-                            "videoId": {
-                                "label": "Video ID"
-                            },
-                            "username": {
-                                "label": "Username"
-                            },
-                            "description": {
-                                "label": "Description"
-                            },
-                            "date": {
-                                "label": "Date"
-                            },
-                            "views": {
-                                "label": "Views",
-                                "format": "number"
-                            },
-                            "likes": {
-                                "label": "Likes",
-                                "format": "number"
-                            },
-                            "comments": {
-                                "label": "Comments",
-                                "format": "number"
-                            },
-                            "shares": {
-                                "label": "Shares",
-                                "format": "number"
-                            },
-                            "musicTitle": {
-                                "label": "Music Title"
-                            },
-                            "url": {
-                                "label": "Video URL",
-                                "format": "link"
-                            },
-                            "mp4StorageUrl": {
-                                "label": "MP4 Storage URL",
-                                "format": "link"
-                            },
-                            "thumbnailStorageUrl": {
-                                "label": "Thumbnail Storage URL",
-                                "format": "link"
-                            }
+                            "id":          { "label": "Video ID",    "format": "text" },
+                            "description": { "label": "Description", "format": "text" },
+                            "createTime":  { "label": "Created At",  "format": "date" },
+                            "url":         { "label": "TikTok URL",  "format": "link" },
+                            "storageUrl":  { "label": "MP4 Download","format": "link" }
                         }
                     }
                 }

@@ -1,0 +1,19 @@
+# Dependencies — installed fresh inside the container.
+node_modules/
+
+# Apify local storage used during development.
+storage/
+apify_storage/
+
+# Development and tooling files.
+.git/
+.gitignore
+.env
+.env.*
+*.log
+
+# Editor files.
+.vscode/
+.idea/
+*.swp
+*.swo
