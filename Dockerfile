@@ -1,6 +1,6 @@
-# Base image: Apify's Node.js 18 image with Playwright + Chromium pre-installed.
+# Base image: Apify's Node.js 20 image with Playwright + Chromium pre-installed.
 # See: https://hub.docker.com/r/apify/actor-node-playwright-chrome
-FROM apify/actor-node-playwright-chrome:18
+FROM apify/actor-node-playwright-chrome:20
 
 # Copy dependency manifest first to leverage Docker layer caching.
 COPY package*.json ./
