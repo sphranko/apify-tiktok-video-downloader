@@ -6,17 +6,18 @@
     "version": "1.0",
     "buildTag": "latest",
     "dockerfile": "../Dockerfile",
+    "readme": "../README.md",
     "input": "./input_schema.json",
     "output": "./output_schema.json",
-    "keyValueStore": "./key_value_store_schema.json",
     "storages": {
+        "keyValueStore": "./key_value_store_schema.json",
         "dataset": {
             "actorSpecification": 1,
             "views": {
                 "overview": {
                     "title": "Videos",
                     "transformation": {
-                            "fields": [
+                        "fields": [
                             "video.cover",
                             "author.name",
                             "text",
@@ -34,18 +35,18 @@
                     "display": {
                         "component": "table",
                         "properties": {
-                            "video.cover":      { "label": "Cover",       "format": "image" },
-                            "author.name":      { "label": "Author",      "format": "text" },
-                            "text":                 { "label": "Description",  "format": "text" },
-                            "createTimeISO":        { "label": "Published",    "format": "text" },
-                            "playCount":            { "label": "Plays",        "format": "number" },
-                            "diggCount":            { "label": "Likes",        "format": "number" },
-                            "commentCount":         { "label": "Comments",     "format": "number" },
-                            "shareCount":           { "label": "Shares",       "format": "number" },
-                            "video.duration":   { "label": "Duration (s)", "format": "number" },
-                            "music.name":  { "label": "Music",        "format": "text" },
-                            "webVideoUrl":          { "label": "TikTok URL",   "format": "link" },
-                            "storageUrl":           { "label": "MP4 Download", "format": "link" }
+                            "video.cover":    { "label": "Cover",        "format": "image" },
+                            "author.name":    { "label": "Author",       "format": "text" },
+                            "text":           { "label": "Description",  "format": "text" },
+                            "createTimeISO":  { "label": "Published",    "format": "text" },
+                            "playCount":      { "label": "Plays",        "format": "number" },
+                            "diggCount":      { "label": "Likes",        "format": "number" },
+                            "commentCount":   { "label": "Comments",     "format": "number" },
+                            "shareCount":     { "label": "Shares",       "format": "number" },
+                            "video.duration": { "label": "Duration (s)", "format": "number" },
+                            "music.name":     { "label": "Music",        "format": "text" },
+                            "webVideoUrl":    { "label": "TikTok URL",   "format": "link" },
+                            "storageUrl":     { "label": "MP4 Download", "format": "link" }
                         }
                     }
                 }

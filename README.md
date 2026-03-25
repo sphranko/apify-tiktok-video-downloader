@@ -60,31 +60,31 @@ Example (full):
   "text": "Check out this demo video! #example",
   "createTimeISO": "2024-04-25T10:30:00.000Z",
 
-  // Author object
+  // Author
   "author": {
-    "name": "tiktok",
-    "avatar": "https://p16-sign.tiktokcdn-us.com/aweme/100x100/..." // may be empty
+    "name":   "tiktok",
+    "avatar": "https://www.tiktok.com/@tiktok"   // channel URL, may be empty
   },
 
-  // Top-level numeric statistics
-  "playCount": 1234567,
-  "diggCount": 54321,
+  // Statistics
+  "playCount":    1234567,
+  "diggCount":    54321,
   "commentCount": 987,
-  "shareCount": 123,
-  "collectCount": 0,
+  "shareCount":   123,
+  "collectCount": 0,            // always 0 (not provided by yt-dlp)
 
-  // Video metadata object
+  // Video metadata
   "video": {
-    "duration": 15,               // seconds
-    "cover": "https://p16-sign.tiktokcdn-us.com/cover/...",
-    "width": 576,
-    "height": 1024
+    "duration": 15,             // seconds
+    "cover":    "https://p16-sign.tiktokcdn-us.com/cover/...",
+    "width":    576,
+    "height":   1024
   },
 
-  // Music / sound metadata object
+  // Music / sound
   "music": {
-    "name": "Original Sound",
-    "author": "tiktok",
+    "name":     "Original Sound",
+    "author":   "tiktok",
     "original": true
   },
 
