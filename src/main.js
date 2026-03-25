@@ -22,8 +22,13 @@ import { log }   from 'crawlee';
 import { scrapeUserVideos } from './scraper.js';
 import { downloadVideo }    from './downloader.js';
 
-/** Base URL for the Apify API, used to build public KV-store record URLs. */
-const APIFY_API_BASE = process.env.APIFY_API_BASE_URL ?? 'https://api.apify.com';
+/**
+ * Public Apify API base URL for constructing KV-store record links.
+ * We intentionally ignore APIFY_API_BASE_URL here because on Apify's
+ * infrastructure that variable resolves to an internal IP (e.g. 10.0.x.x)
+ * which is unreachable from outside the cluster.
+ */
+const APIFY_API_BASE = 'https://api.apify.com';
 
 await Actor.main(async () => {
     // ------------------------------------------------------------------

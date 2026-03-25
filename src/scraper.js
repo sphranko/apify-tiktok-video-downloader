@@ -47,6 +47,9 @@ function normalizeVideoItem(item) {
     const id = String(isAweme ? (item.aweme_id ?? '') : (item.id ?? ''));
     if (!id) return null;
 
+    // createTime from TikTok is Unix seconds; convert to ms for JS Date compatibility.
+    const createTimeSec = Number(isAweme ? (item.create_time ?? 0) : (item.createTime ?? 0));
+
     const playUrl =
         video.playAddr ??
         video.play_addr?.url_list?.[0] ??
@@ -54,19 +57,22 @@ function normalizeVideoItem(item) {
         video.download_addr?.url_list?.[0] ??
         '';
 
-    if (!playUrl) return null;
+    // isPinned: exclude from results but keep in normaliser so callers can filter.
+    const isPinned = Boolean(isAweme ? (item.is_top ?? 0) : (item.isTop ?? 0));
 
     return {
         id,
+        isPinned,
         description: String(item.desc ?? ''),
-        createTime:  Number(isAweme ? (item.create_time ?? 0) : (item.createTime ?? 0)),
+        createTime:  createTimeSec,
+        createDate:  createTimeSec ? new Date(createTimeSec * 1000).toISOString() : null,
         author: {
             id:       String(author.uid      ?? author.id    ?? item.authorId ?? ''),
             uniqueId: String(author.unique_id ?? author.uniqueId ?? ''),
             nickname: String(author.nickname  ?? ''),
         },
         video: {
-            downloadUrl: String(playUrl),
+            downloadUrl: playUrl ? String(playUrl) : '',
             cover:       String(video.cover ?? video.origin_cover ?? ''),
             duration:    Number(video.duration ?? 0),
             width:       Number(video.width    ?? 0),
