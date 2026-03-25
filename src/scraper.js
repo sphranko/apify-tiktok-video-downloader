@@ -1,19 +1,58 @@
 /**
  * @file scraper.js
- * @description TikTok profile scraper using Playwright via Crawlee.
+ * @description TikTok profile scraper using CheerioCrawler (HTTP-only).
  *
- * Core technique:
- *  1. Navigate to the TikTok profile page (domcontentloaded — faster, less RAM).
- *  2. Intercept every request matching *tiktok.com/api/** with `page.route()`.
- *     Unlike `page.on('response')`, routing gives us exclusive ownership of the
- *     response body so `response.text()` never throws "body already consumed".
- *  3. Parse any intercepted JSON that contains a video list (itemList, aweme_list…).
- *  4. Scroll the page to trigger TikTok's own pagination API calls.
- *  5. After collection, capture session cookies for the caller to use when
- *     downloading CDN video files.
+ * Strategy:
+ *  1. Perform a plain GET request to the TikTok profile URL with realistic
+ *     browser headers so TikTok's SSR serves the full HTML page.
+ *  2. Parse the `<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__">` tag embedded
+ *     in the HTML — it contains the first batch of profile videos as JSON,
+ *     no JavaScript execution required.
+ *  3. Fall back to the legacy `<script id="SIGI_STATE">` tag if needed.
+ *  4. Sort by creation timestamp and apply the caller-supplied limit.
+ *
+ * Why CheerioCrawler instead of Playwright:
+ *  TikTok detects headless browsers and serves a stripped-down page without
+ *  the embedded video data. Plain HTTP requests with browser-like headers
+ *  bypass this detection and receive the full SSR payload.
+ *
+ * Pagination note:
+ *  The SSR payload typically contains the latest ~30 videos. Fetching beyond
+ *  that requires TikTok's signed API (Java-based MetaSec signing used by
+ *  third-party actors). For the default limit of 10 this is sufficient.
  */
 
-import { PlaywrightCrawler, log } from 'crawlee';
+import { CheerioCrawler, log } from 'crawlee';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Headers that mimic a real Chrome browser on Windows.
+ * These are required for TikTok's CDN/SSR to serve the full HTML payload.
+ */
+const BROWSER_HEADERS = {
+    'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+        + 'AppleWebKit/537.36 (KHTML, like Gecko) '
+        + 'Chrome/124.0.0.0 Safari/537.36',
+    'Accept':
+        'text/html,application/xhtml+xml,application/xml;q=0.9,'
+        + 'image/avif,image/webp,image/apng,*/*;q=0.8,'
+        + 'application/signed-exchange;v=b3;q=0.7',
+    'Accept-Language':          'en-US,en;q=0.9',
+    'Accept-Encoding':          'gzip, deflate, br',
+    'Cache-Control':            'max-age=0',
+    'Sec-Ch-Ua':                '"Not_A Brand";v="8", "Chromium";v="124", "Google Chrome";v="124"',
+    'Sec-Ch-Ua-Mobile':         '?0',
+    'Sec-Ch-Ua-Platform':       '"Windows"',
+    'Sec-Fetch-Dest':           'document',
+    'Sec-Fetch-Mode':           'navigate',
+    'Sec-Fetch-Site':           'none',
+    'Sec-Fetch-User':           '?1',
+    'Upgrade-Insecure-Requests': '1',
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -32,13 +71,15 @@ function extractUsername(url) {
 
 /**
  * Normalises a raw TikTok API video item into the internal shape.
- * Handles both the web format (playAddr, stats.*Count) and the mobile/aweme
- * format (play_addr.url_list, statistics.*_count).
+ * Handles both the web format (playAddr, stats.*Count) and the legacy
+ * aweme/mobile format (play_addr.url_list, statistics.*_count).
  *
- * @param {Object} item - Raw video item.
+ * @param {Object} item - Raw video item from TikTok's embedded page state.
  * @returns {Object|null} Normalised video descriptor, or null if unusable.
  */
 function normalizeVideoItem(item) {
+    if (!item || typeof item !== 'object') return null;
+
     const isAweme = Boolean(item.aweme_id);
     const author  = item.author     ?? {};
     const video   = item.video      ?? {};
@@ -47,18 +88,21 @@ function normalizeVideoItem(item) {
     const id = String(isAweme ? (item.aweme_id ?? '') : (item.id ?? ''));
     if (!id) return null;
 
-    // createTime from TikTok is Unix seconds; convert to ms for JS Date compatibility.
-    const createTimeSec = Number(isAweme ? (item.create_time ?? 0) : (item.createTime ?? 0));
+    // createTime from TikTok is Unix seconds; multiply by 1000 for JS Date.
+    const createTimeSec = Number(
+        isAweme ? (item.create_time ?? 0) : (item.createTime ?? 0),
+    );
 
     const playUrl =
-        video.playAddr ??
-        video.play_addr?.url_list?.[0] ??
-        video.downloadAddr ??
+        video.playAddr                    ??
+        video.play_addr?.url_list?.[0]    ??
+        video.downloadAddr                ??
         video.download_addr?.url_list?.[0] ??
         '';
 
-    // isPinned: exclude from results but keep in normaliser so callers can filter.
     const isPinned = Boolean(isAweme ? (item.is_top ?? 0) : (item.isTop ?? 0));
+
+    const toNum = (v) => Number(v ?? 0);
 
     return {
         id,
@@ -67,7 +111,7 @@ function normalizeVideoItem(item) {
         createTime:  createTimeSec,
         createDate:  createTimeSec ? new Date(createTimeSec * 1000).toISOString() : null,
         author: {
-            id:       String(author.uid      ?? author.id    ?? item.authorId ?? ''),
+            id:       String(author.uid       ?? author.id    ?? item.authorId ?? ''),
             uniqueId: String(author.unique_id ?? author.uniqueId ?? ''),
             nickname: String(author.nickname  ?? ''),
         },
@@ -79,32 +123,44 @@ function normalizeVideoItem(item) {
             height:      Number(video.height   ?? 0),
         },
         stats: {
-            plays:    Number(stats.playCount    ?? stats.play_count    ?? 0),
-            likes:    Number(stats.diggCount    ?? stats.digg_count    ?? 0),
-            comments: Number(stats.commentCount ?? stats.comment_count ?? 0),
-            shares:   Number(stats.shareCount   ?? stats.share_count   ?? 0),
+            plays:    toNum(stats.playCount    ?? stats.play_count),
+            likes:    toNum(stats.diggCount    ?? stats.digg_count),
+            comments: toNum(stats.commentCount ?? stats.comment_count),
+            shares:   toNum(stats.shareCount   ?? stats.share_count),
         },
     };
 }
 
 /**
- * Tries to extract a list of video items from a parsed API response object.
+ * Extracts a video item list from TikTok's embedded page-state JSON.
  *
- * @param {Object} data - Parsed JSON from any TikTok endpoint.
- * @returns {Object[]} Array of normalised video items (may be empty).
+ * @param {Object} pageData - Parsed JSON from the embedded script tag.
+ * @returns {Object[]} Array of raw item objects (may be empty).
  */
-function extractFromApiPayload(data) {
-    const list =
-        data?.itemList       ??
-        data?.aweme_list     ??
-        data?.items          ??
-        data?.data?.itemList ??
-        data?.data?.aweme_list ??
+function extractItemListFromPageData(pageData) {
+    if (!pageData || typeof pageData !== 'object') return [];
+
+    const scope = pageData.__DEFAULT_SCOPE__ ?? {};
+
+    // Current TikTok format (webapp.user-post or webapp.video-user)
+    const fromScope =
+        scope?.['webapp.user-post']?.itemList  ??
+        scope?.['webapp.video-user']?.itemList ??
         null;
+    if (Array.isArray(fromScope) && fromScope.length > 0) return fromScope;
 
-    if (!Array.isArray(list) || list.length === 0) return [];
+    // Legacy SIGI_STATE format (ItemModule is an object keyed by video ID)
+    if (pageData.ItemModule && typeof pageData.ItemModule === 'object') {
+        const items = Object.values(pageData.ItemModule);
+        if (items.length > 0) return items;
+    }
 
-    return list.map(normalizeVideoItem).filter(Boolean);
+    // Flat itemList at root (some API response shapes)
+    if (Array.isArray(pageData.itemList) && pageData.itemList.length > 0) {
+        return pageData.itemList;
+    }
+
+    return [];
 }
 
 // ---------------------------------------------------------------------------
@@ -112,7 +168,10 @@ function extractFromApiPayload(data) {
 // ---------------------------------------------------------------------------
 
 /**
- * Scrapes videos from a TikTok user profile page using Playwright.
+ * Scrapes videos from a TikTok user profile page.
+ *
+ * Uses `CheerioCrawler` (HTTP-only) to fetch the profile page HTML and parse
+ * the SSR-embedded video list — no browser required.
  *
  * @param {string} profileUrl - Full TikTok profile URL.
  * @param {Object} [options]              - Scraping options.
@@ -120,183 +179,70 @@ function extractFromApiPayload(data) {
  * @param {string} [options.order='desc'] - `'desc'` newest-first, `'asc'` oldest-first.
  * @returns {Promise<{ videos: Object[], cookies: string }>}
  *   `videos`  — sorted and limited array of normalised video descriptors.
- *   `cookies` — raw Cookie header string from the browser session, required
- *               to download watermark-free video files from TikTok's CDN.
+ *   `cookies` — empty string (no browser session; kept for API compatibility).
  */
 export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc' } = {}) {
-    const username    = extractUsername(profileUrl);
-    const videoMap    = new Map(); // videoId → normalised item
-    let   sessionCookies = '';
+    const username = extractUsername(profileUrl);
+    const videoMap = new Map();
 
-    const crawler = new PlaywrightCrawler({
+    const crawler = new CheerioCrawler({
         maxRequestsPerCrawl: 1,
 
-        launchContext: {
-            launchOptions: {
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    // Prevents Chrome from crashing when /dev/shm is small (Docker).
-                    '--disable-dev-shm-usage',
-                    // Hide Playwright's automation fingerprint.
-                    '--disable-blink-features=AutomationControlled',
-                    // Memory savings.
-                    '--disable-extensions',
-                    '--disable-background-networking',
-                    '--disable-default-apps',
-                    '--disable-sync',
-                    '--mute-audio',
-                    '--disable-gpu',
-                ],
-            },
-        },
+        // Ignore non-HTML MIME types that might be encountered.
+        additionalMimeTypes: ['application/json'],
 
-        preNavigationHooks: [
-            async ({ page }) => {
-                // ── Stealth: hide automation signals ─────────────────────────
-                await page.addInitScript(() => {
-                    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-                    window.chrome = { runtime: {} };
-                });
+        async requestHandler({ $ }) {
+            // ── Step 1: Extract the embedded page-state JSON ──────────────────
+            // TikTok's SSR injects the first batch of profile videos into one of
+            // these script elements as a JSON string.
+            const scriptText =
+                $('script#__UNIVERSAL_DATA_FOR_REHYDRATION__').html() ??
+                $('script#SIGI_STATE').html()                          ??
+                '';
 
-                // ── Route interception — all TikTok API responses ─────────────
-                // We log every intercepted path so we can identify which
-                // endpoint(s) TikTok uses for the profile video list.
-                await page.route(/tiktok\.com\/api\//, async (route) => {
-                    let response;
-                    try {
-                        response = await route.fetch();
-                    } catch {
-                        await route.continue();
-                        return;
-                    }
-
-                    // Read body as text first so we can handle non-JSON gracefully.
-                    let text = '';
-                    try { text = await response.text(); } catch { /* ignore */ }
-
-                    const path = new URL(route.request().url()).pathname;
-
-                    if (text.trimStart().startsWith('{')) {
-                        try {
-                            const data  = JSON.parse(text);
-                            const items = extractFromApiPayload(data);
-
-                            if (items.length) {
-                                // Log every endpoint that yields video items so we
-                                // can narrow the pattern once the correct one is known.
-                                log.info(
-                                    `[${username}] ${path} → ${items.length} item(s) `
-                                    + `(authors: ${[...new Set(items.map((v) => v.author.uniqueId))].join(', ')})`,
-                                );
-
-                                // Keep only videos that belong to the target profile.
-                                const own = items.filter(
-                                    (v) => !v.author.uniqueId
-                                        || v.author.uniqueId.toLowerCase() === username.toLowerCase(),
-                                );
-                                for (const v of own) videoMap.set(v.id, v);
-                                log.debug(`[${username}] Kept ${own.length} own video(s) (total: ${videoMap.size})`);
-                            } else {
-                                log.debug(`[${username}] ${path} → no video items (status ${response.status()})`);
-                            }
-                        } catch { /* malformed JSON — ignore */ }
-                    }
-
-                    // Forward the original response body to the page's own JS.
-                    await route.fulfill({
-                        status:  response.status(),
-                        headers: response.headers(),
-                        body:    text,
-                    });
-                });
-            },
-        ],
-
-        navigationTimeoutSecs:     60,
-        requestHandlerTimeoutSecs: 300,
-
-        async requestHandler({ page }) {
-            log.info(`[${username}] Navigating to ${profileUrl}`);
-
-            await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-
-            // Give React time to hydrate and fire initial API calls.
-            await page.waitForTimeout(5_000);
-
-            // ── Extract initial batch from embedded page state ────────────────
-            // TikTok SSR-embeds the first batch of profile videos in a
-            // <script id="__UNIVERSAL_DATA_FOR_REHYDRATION__"> tag.
-            // This is the primary source for the initial load; XHR interception
-            // handles pagination triggered by scrolling.
-            const embeddedItems = await page.evaluate(() => {
-                try {
-                    const el  = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__');
-                    if (!el?.textContent) return null;
-                    const data  = JSON.parse(el.textContent);
-                    const scope = data?.__DEFAULT_SCOPE__;
-                    return (
-                        scope?.['webapp.user-post']?.itemList  ??
-                        scope?.['webapp.video-user']?.itemList ??
-                        null
-                    );
-                } catch { return null; }
-            });
-
-            if (Array.isArray(embeddedItems) && embeddedItems.length) {
-                for (const raw of embeddedItems) {
-                    const v = normalizeVideoItem(raw);
-                    if (v && (!v.author.uniqueId || v.author.uniqueId.toLowerCase() === username.toLowerCase())) {
-                        videoMap.set(v.id, v);
-                    }
-                }
-                log.info(`[${username}] Embedded state: ${videoMap.size} video(s).`);
-            } else {
-                log.warning(`[${username}] No embedded state found — relying on XHR only.`);
-            }
-
-            log.info(`[${username}] Initial load done — ${videoMap.size} video(s) so far.`);
-
-            // ── Scroll to trigger pagination API calls ────────────────────────
-            const fetchTarget  = Math.min(limit * 2, 100);
-            let   stalledRounds = 0;
-
-            while (videoMap.size < fetchTarget && stalledRounds < 5) {
-                const before = videoMap.size;
-
-                await page.evaluate(() =>
-                    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }),
+            if (!scriptText.trim()) {
+                log.warning(
+                    `[${username}] No embedded state found. TikTok may be blocking `
+                    + 'the request or the page structure has changed.',
                 );
-                // Wait for TikTok's XHR to fire and our route handler to process it.
-                await page.waitForTimeout(3_000);
-
-                if (videoMap.size > before) {
-                    stalledRounds = 0;
-                    log.debug(
-                        `[${username}] +${videoMap.size - before} after scroll `
-                        + `(total: ${videoMap.size})`,
-                    );
-                } else {
-                    stalledRounds++;
-                    log.debug(
-                        `[${username}] No new videos (stalled ${stalledRounds}/5, `
-                        + `total: ${videoMap.size})`,
-                    );
-                }
+                return;
             }
 
-            log.info(`[${username}] Collection done — ${videoMap.size} unique video(s).`);
+            let pageData;
+            try {
+                pageData = JSON.parse(scriptText);
+            } catch (err) {
+                log.error(`[${username}] Failed to parse embedded state: ${err.message}`);
+                return;
+            }
 
-            // ── Capture session cookies for CDN downloads ─────────────────────
-            // Getting all cookies (no URL filter) ensures we include subdomains
-            // used by TikTok's CDN (e.g. v19-webapp.tiktok.com).
-            const allCookies = await page.context().cookies();
-            sessionCookies   = allCookies.map((c) => `${c.name}=${c.value}`).join('; ');
+            // ── Step 2: Normalise items and deduplicate ────────────────────────
+            const rawItems = extractItemListFromPageData(pageData);
+            log.info(`[${username}] Embedded state: ${rawItems.length} raw item(s).`);
+
+            for (const raw of rawItems) {
+                const v = normalizeVideoItem(raw);
+                if (!v) continue;
+
+                // Only keep videos that belong to the requested profile.
+                if (
+                    v.author.uniqueId
+                    && v.author.uniqueId.toLowerCase() !== username.toLowerCase()
+                ) continue;
+
+                videoMap.set(v.id, v);
+            }
+
+            log.info(`[${username}] Collected ${videoMap.size} own video(s).`);
         },
     });
 
-    await crawler.run([{ url: profileUrl }]);
+    await crawler.run([{
+        url:     profileUrl,
+        headers: BROWSER_HEADERS,
+    }]);
 
+    // ── Sort by creation date and apply limit ─────────────────────────────────
     const videos = Array.from(videoMap.values());
     videos.sort((a, b) =>
         order === 'asc'
@@ -309,5 +255,7 @@ export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc' 
         v.url = `https://www.tiktok.com/@${v.author.uniqueId}/video/${v.id}`;
     }
 
-    return { videos: result, cookies: sessionCookies };
+    // cookies is empty — CheerioCrawler has no browser session.
+    // downloader.js will attempt the CDN request without session cookies.
+    return { videos: result, cookies: '' };
 }
