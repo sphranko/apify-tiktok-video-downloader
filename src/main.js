@@ -3,26 +3,22 @@
  * @description Entry point for the TikTok Video Scraper & Downloader Apify Actor.
  *
  * Flow:
- *  1. For each profile URL, fetch video metadata via tikwm.com (scraper.js).
- *     The response already includes watermark-free CDN download URLs.
- *  2. Optionally download each MP4 binary and save it to the Apify
- *     Key-Value Store (downloader.js).
- *  3. Push every video record to the Apify Dataset, including a `storageUrl`
- *     when the file was successfully saved.
+ *  1. For each profile URL, open a Playwright browser session to scrape video
+ *     metadata via TikTok's internal API (scraper.js). The session cookies are
+ *     captured before the browser closes.
+ *  2. Optionally download each MP4 using the captured cookies (downloader.js)
+ *     and save the binary to the Apify Key-Value Store.
+ *  3. Push every video record to the Apify Dataset.
  *
  * Input schema (see .actor/input_schema.json):
  *  - profileUrls    {string[]} TikTok profile URLs to scrape.
  *  - limit          {number}   Max videos per profile. Default: 10.
  *  - order          {string}   'desc' (newest first) | 'asc' (oldest first).
  *  - downloadVideos {boolean}  Whether to download MP4 files. Default: true.
- *
- * Output (Apify Dataset):
- *  Each record contains video metadata plus an optional `storageUrl` field
- *  pointing to the downloaded MP4 in the Apify Key-Value Store.
  */
 
 import { Actor } from 'apify';
-import { log } from 'crawlee';
+import { log }   from 'crawlee';
 import { scrapeUserVideos } from './scraper.js';
 import { downloadVideo }    from './downloader.js';
 
@@ -74,10 +70,12 @@ await Actor.main(async () => {
     for (const profileUrl of profileUrls) {
         log.info(`\n=== Processing profile: ${profileUrl} ===`);
 
-        // 3a. Fetch video list via tikwm.com.
+        // 3a. Scrape the video list; also capture browser session cookies.
         let videos;
+        let cookies;
+
         try {
-            videos = await scrapeUserVideos(profileUrl, { limit, order });
+            ({ videos, cookies } = await scrapeUserVideos(profileUrl, { limit, order }));
         } catch (err) {
             log.error(`Failed to scrape "${profileUrl}": ${err.message}`);
             continue;
@@ -85,16 +83,21 @@ await Actor.main(async () => {
 
         log.info(`Found ${videos.length} video(s) for "${profileUrl}".`);
 
-        // 3b. Optionally download each video and push the record to the dataset.
+        // 3b. Optionally download each video and push its record to the dataset.
         for (const video of videos) {
-            /** @type {Object} The final dataset record for this video. */
             const record = { ...video };
 
-            if (downloadVideos) {
+            if (downloadVideos && video.video.downloadUrl) {
                 const storageKey = `video-${video.id}.mp4`;
 
                 try {
-                    const buffer = await downloadVideo(video.video.downloadUrl, video.id);
+                    // Forward the captured browser cookies so TikTok's CDN
+                    // accepts the download request.
+                    const buffer = await downloadVideo(
+                        video.video.downloadUrl,
+                        video.id,
+                        cookies,
+                    );
                     await store.setValue(storageKey, buffer, { contentType: 'video/mp4' });
 
                     record.storageKey = storageKey;
