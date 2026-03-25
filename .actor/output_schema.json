@@ -3,11 +3,13 @@
     "title": "TikTok Video Scraper & Downloader — outputs",
     "properties": {
         "dataset": {
+            "type": "string",
             "title": "Video records",
             "description": "Dataset containing one record per scraped TikTok video, including metadata and an optional MP4 download URL.",
             "template": "{{links.apiDefaultDatasetUrl}}/items"
         },
         "mp4Files": {
+            "type": "string",
             "title": "Downloaded MP4 files",
             "description": "Key-Value Store entries for every video that was downloaded (only present when downloadVideos is enabled).",
             "template": "{{links.apiDefaultKeyValueStoreUrl}}/keys"
