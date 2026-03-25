@@ -107,7 +107,7 @@ function normalizeYtDlpItem(item) {
  * @param {string} [options.order='desc']
  * @returns {Promise<{ videos: Object[] }>}
  */
-export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc' } = {}) {
+export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc', cookiesFile = null } = {}) {
     const username = extractUsername(profileUrl);
     log.info(`[scraper] Fetching videos for @${username} (limit: ${limit}, order: ${order})`);
 
@@ -115,23 +115,38 @@ export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc' 
     // For ascending we fetch a larger window so we can sort and take the oldest.
     const fetchCount = order === 'asc' ? Math.min(limit * 5, 100) : limit;
 
+    const args = [
+        '--dump-json',
+        '--no-download',
+        '--no-warnings',
+        '--no-check-certificates',
+        '--ignore-errors',
+        '--extractor-args', 'tiktok:app_name=musical_ly',
+        '--playlist-items', `1:${fetchCount}`,
+    ];
+
+    if (cookiesFile) {
+        args.push('--cookies', cookiesFile);
+    }
+
+    args.push(profileUrl);
+
     let stdout;
     try {
-        const result = await execAsync('yt-dlp', [
-            '--dump-json',
-            '--no-download',
-            '--no-warnings',
-            '--no-check-certificates',
-            '--playlist-items', `1:${fetchCount}`,
-            profileUrl,
-        ], {
+        const result = await execAsync('yt-dlp', args, {
             maxBuffer: 100 * 1024 * 1024,  // 100 MB
             timeout:   300_000,             // 5 min
         });
         stdout = result.stdout;
     } catch (err) {
-        const msg = err.stderr?.trim() || err.message;
-        throw new Error(`yt-dlp failed for @${username}: ${msg}`);
+        // With --ignore-errors, yt-dlp exits non-zero only if ALL items failed.
+        // If we got any stdout, try to use it before giving up.
+        if (err.stdout?.trim()) {
+            stdout = err.stdout;
+        } else {
+            const msg = err.stderr?.trim() || err.message;
+            throw new Error(`yt-dlp failed for @${username}: ${msg}`);
+        }
     }
 
     // yt-dlp outputs one JSON object per line (JSONL).

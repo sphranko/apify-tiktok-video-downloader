@@ -17,6 +17,7 @@
 
 import { Actor } from 'apify';
 import { log }   from 'crawlee';
+import { writeFile, unlink } from 'node:fs/promises';
 import { scrapeUserVideos } from './scraper.js';
 import { downloadVideo }    from './downloader.js';
 
@@ -42,7 +43,21 @@ await Actor.main(async () => {
         limit          = 10,
         order          = 'desc',
         downloadVideos = true,
+        tiktokSessionId = null,
     } = input;
+
+    // Write a Netscape-format cookies file if a session ID was provided.
+    // TikTok requires a valid session cookie when running from datacenter IPs.
+    let cookiesFile = null;
+    if (tiktokSessionId) {
+        cookiesFile = '/tmp/tiktok-cookies.txt';
+        const cookieContent = [
+            '# Netscape HTTP Cookie File',
+            '.tiktok.com\tTRUE\t/\tTRUE\t0\tsessionid\t' + tiktokSessionId,
+        ].join('\n') + '\n';
+        await writeFile(cookiesFile, cookieContent);
+        log.info('TikTok session cookie loaded.');
+    }
 
     if (!Array.isArray(profileUrls) || profileUrls.length === 0) {
         throw new Error('"profileUrls" must be a non-empty array of TikTok profile URLs.');
@@ -71,7 +86,7 @@ await Actor.main(async () => {
 
         let videos;
         try {
-            ({ videos } = await scrapeUserVideos(profileUrl, { limit, order }));
+            ({ videos } = await scrapeUserVideos(profileUrl, { limit, order, cookiesFile }));
         } catch (err) {
             log.error(`Failed to scrape "${profileUrl}": ${err.message}`);
             continue;
@@ -86,7 +101,7 @@ await Actor.main(async () => {
                 const storageKey = `video-${video.id}.mp4`;
 
                 try {
-                    const buffer = await downloadVideo(video.webVideoUrl, video.id);
+                    const buffer = await downloadVideo(video.webVideoUrl, video.id, { cookiesFile });
                     await store.setValue(storageKey, buffer, { contentType: 'video/mp4' });
 
                     record.storageKey = storageKey;
@@ -104,6 +119,10 @@ await Actor.main(async () => {
 
             await dataset.pushData(record);
         }
+    }
+
+    if (cookiesFile) {
+        await unlink(cookiesFile).catch(() => {});
     }
 
     log.info('Actor finished successfully.');

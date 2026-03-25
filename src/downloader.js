@@ -25,20 +25,28 @@ const TMP_DIR = '/tmp/tiktok-dl';
  * @returns {Promise<Buffer>} Raw MP4 file contents.
  * @throws {Error} If yt-dlp fails or the file cannot be read.
  */
-export async function downloadVideo(videoPageUrl, videoId) {
+export async function downloadVideo(videoPageUrl, videoId, { cookiesFile = null } = {}) {
     await mkdir(TMP_DIR, { recursive: true });
 
     const outputPath = `${TMP_DIR}/video-${videoId}.mp4`;
     log.info(`[${videoId}] Downloading MP4 via yt-dlp...`);
 
+    const args = [
+        '-o', outputPath,
+        '--format', 'best[ext=mp4]/best',
+        '--no-warnings',
+        '--no-check-certificates',
+        '--extractor-args', 'tiktok:app_name=musical_ly',
+    ];
+
+    if (cookiesFile) {
+        args.push('--cookies', cookiesFile);
+    }
+
+    args.push(videoPageUrl);
+
     try {
-        await execAsync('yt-dlp', [
-            '-o', outputPath,
-            '--format', 'best[ext=mp4]/best',
-            '--no-warnings',
-            '--no-check-certificates',
-            videoPageUrl,
-        ], { timeout: 120_000 });
+        await execAsync('yt-dlp', args, { timeout: 120_000 });
     } catch (err) {
         const msg = err.stderr?.trim() || err.message;
         throw new Error(`yt-dlp download failed for ${videoId}: ${msg}`);

@@ -34,6 +34,13 @@
             "type": "boolean",
             "description": "When enabled, each MP4 is downloaded and saved to the Apify Key-Value Store. The public URL is added to the dataset record as 'storageUrl'.",
             "default": true
+        },
+        "tiktokSessionId": {
+            "title": "TikTok Session ID (optional)",
+            "type": "string",
+            "description": "Your TikTok 'sessionid' cookie value. Required when running from datacenter IPs — without it TikTok may block video format requests. To get it: open TikTok in a browser → DevTools → Application → Cookies → copy the 'sessionid' value.",
+            "isSecret": true,
+            "editor": "textfield"
         }
     },
     "required": ["profileUrls"]
