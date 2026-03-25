@@ -159,10 +159,13 @@ export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc' 
                     window.chrome = { runtime: {} };
                 });
 
-                // ── Route interception for all TikTok API calls ───────────────
-                // page.route() gives exclusive response-body access; unlike
-                // page.on('response'), it will never throw "body already consumed".
-                await page.route('**tiktok.com/api/**', async (route) => {
+                // ── Route interception — profile video list endpoints only ────
+                // Targeting item_list and user/post avoids catching suggested
+                // content, ads, or other accounts' videos that TikTok also loads
+                // on a profile page.
+                // page.route() gives exclusive response-body access so
+                // response.text() never throws "body already consumed".
+                await page.route(/tiktok\.com\/api\/(post\/item_list|user\/post)/, async (route) => {
                     let response;
                     try {
                         response = await route.fetch();
@@ -179,10 +182,17 @@ export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc' 
                         try {
                             const data  = JSON.parse(text);
                             const items = extractFromApiPayload(data);
-                            if (items.length) {
-                                for (const v of items) videoMap.set(v.id, v);
+
+                            // Keep only videos that belong to the target profile.
+                            const own = items.filter(
+                                (v) => !v.author.uniqueId
+                                    || v.author.uniqueId.toLowerCase() === username.toLowerCase(),
+                            );
+
+                            if (own.length) {
+                                for (const v of own) videoMap.set(v.id, v);
                                 log.debug(
-                                    `[${username}] Intercepted ${items.length} item(s) from `
+                                    `[${username}] Intercepted ${own.length} item(s) from `
                                     + `${new URL(route.request().url()).pathname} `
                                     + `(total: ${videoMap.size})`,
                                 );
