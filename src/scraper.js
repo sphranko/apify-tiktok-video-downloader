@@ -219,12 +219,41 @@ export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc' 
         async requestHandler({ page }) {
             log.info(`[${username}] Navigating to ${profileUrl}`);
 
-            // domcontentloaded is faster and uses less RAM than networkidle.
-            // We wait for the API responses via the route interceptor instead.
             await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 60_000 });
 
-            // Give the page time to hydrate and fire initial API calls.
+            // Give React time to hydrate and fire initial API calls.
             await page.waitForTimeout(5_000);
+
+            // ── Extract initial batch from embedded page state ────────────────
+            // TikTok SSR-embeds the first batch of profile videos in a
+            // <script id="__UNIVERSAL_DATA_FOR_REHYDRATION__"> tag.
+            // This is the primary source for the initial load; XHR interception
+            // handles pagination triggered by scrolling.
+            const embeddedItems = await page.evaluate(() => {
+                try {
+                    const el  = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__');
+                    if (!el?.textContent) return null;
+                    const data  = JSON.parse(el.textContent);
+                    const scope = data?.__DEFAULT_SCOPE__;
+                    return (
+                        scope?.['webapp.user-post']?.itemList  ??
+                        scope?.['webapp.video-user']?.itemList ??
+                        null
+                    );
+                } catch { return null; }
+            });
+
+            if (Array.isArray(embeddedItems) && embeddedItems.length) {
+                for (const raw of embeddedItems) {
+                    const v = normalizeVideoItem(raw);
+                    if (v && (!v.author.uniqueId || v.author.uniqueId.toLowerCase() === username.toLowerCase())) {
+                        videoMap.set(v.id, v);
+                    }
+                }
+                log.info(`[${username}] Embedded state: ${videoMap.size} video(s).`);
+            } else {
+                log.warning(`[${username}] No embedded state found — relying on XHR only.`);
+            }
 
             log.info(`[${username}] Initial load done — ${videoMap.size} video(s) so far.`);
 
