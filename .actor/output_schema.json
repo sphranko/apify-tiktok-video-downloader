@@ -7,7 +7,7 @@
     "properties": {
         "id": { "type": "string", "description": "Video ID", "template": "{{id}}" },
         "text": { "type": "string", "description": "Video caption/description", "template": "{{text}}" },
-        "createTimeISO": { "type": "string", "format": "date-time", "template": "{{createTimeISO}}" },
+        "createTimeISO": { "type": "string", "template": "{{createTimeISO}}" },
 
         "author": {
             "type": "object",
@@ -15,7 +15,7 @@
             "template": "{{author.name}}",
             "properties": {
                 "name": { "type": "string" },
-                "avatar": { "type": "string", "format": "uri" }
+                "avatar": { "type": "string" }
             }
         },
 
@@ -31,7 +31,7 @@
             "template": "{{video.cover}}",
             "properties": {
                 "duration": { "type": "number" },
-                "cover": { "type": "string", "format": "uri" },
+                "cover": { "type": "string" },
                 "width": { "type": "integer" },
                 "height": { "type": "integer" }
             }
@@ -48,10 +48,10 @@
             }
         },
 
-        "webVideoUrl": { "type": "string", "format": "uri", "template": "{{webVideoUrl}}" },
+        "webVideoUrl": { "type": "string", "template": "{{webVideoUrl}}" },
 
         "storageKey": { "type": "string", "template": "{{storageKey}}" },
-        "storageUrl": { "type": "string", "format": "uri", "template": "{{storageUrl}}" }
+        "storageUrl": { "type": "string", "template": "{{storageUrl}}" }
     },
     "required": ["id", "webVideoUrl"]
 }
