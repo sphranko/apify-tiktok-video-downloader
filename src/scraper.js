@@ -47,15 +47,19 @@ function normalizeYtDlpItem(item) {
 
     const timestamp = Number(item.timestamp ?? 0);
 
+    // Thumbnail: yt-dlp provides the video cover, not the author avatar.
+    const thumbnail = item.thumbnail
+        ?? item.thumbnails?.[0]?.url
+        ?? '';
+
     return {
         id:             String(item.id),
         text:           String(item.description ?? item.title ?? ''),
         createTimeISO:  timestamp ? new Date(timestamp * 1000).toISOString() : null,
-        createTime:     timestamp,
 
         // Author
         'authorMeta.name':   String(item.uploader ?? item.uploader_id ?? ''),
-        'authorMeta.avatar': '',  // yt-dlp doesn't provide avatar URLs
+        'authorMeta.avatar': String(item.channel_url ?? ''),
 
         // Stats
         playCount:    Number(item.view_count    ?? 0),
@@ -66,11 +70,15 @@ function normalizeYtDlpItem(item) {
 
         // Video metadata
         'videoMeta.duration': Number(item.duration ?? 0),
+        'videoMeta.cover':    String(thumbnail),
+        'videoMeta.width':    Number(item.width  ?? 0),
+        'videoMeta.height':   Number(item.height ?? 0),
 
         // Music metadata
         'musicMeta.musicName':     String(item.track    ?? ''),
         'musicMeta.musicAuthor':   String(item.artist   ?? ''),
-        'musicMeta.musicOriginal': false,
+        'musicMeta.musicOriginal': Boolean(item.artist && item.uploader
+            && item.artist.toLowerCase() === item.uploader.toLowerCase()),
 
         // URLs
         webVideoUrl: String(
@@ -128,6 +136,13 @@ export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc' 
 
     log.info(`[scraper] yt-dlp returned ${rawItems.length} video(s) for @${username}.`);
 
+    // Sort raw items by timestamp before normalising so we can slice correctly.
+    rawItems.sort((a, b) => {
+        const ta = Number(a.timestamp ?? 0);
+        const tb = Number(b.timestamp ?? 0);
+        return order === 'asc' ? ta - tb : tb - ta;
+    });
+
     // Normalise and filter to only this user's content.
     const videos = rawItems
         .map(normalizeYtDlpItem)
@@ -136,13 +151,6 @@ export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc' 
             const author = v['authorMeta.name'].toLowerCase();
             return !author || author === username.toLowerCase();
         });
-
-    // Sort by creation timestamp.
-    videos.sort((a, b) =>
-        order === 'asc'
-            ? a.createTime - b.createTime
-            : b.createTime - a.createTime,
-    );
 
     return { videos: videos.slice(0, limit) };
 }
