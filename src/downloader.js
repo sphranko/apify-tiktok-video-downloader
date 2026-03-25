@@ -1,63 +1,52 @@
 /**
  * @file downloader.js
- * @description Downloads a TikTok MP4 from a direct CDN URL.
+ * @description Downloads a TikTok video MP4 using yt-dlp.
  *
- * TikTok's CDN URLs (playAddr field) are watermark-free but require the
- * original browser session cookies to be forwarded — otherwise the CDN
- * returns 403. The caller must pass the `cookies` string captured by the
- * Playwright session in scraper.js.
+ * yt-dlp handles TikTok CDN authentication and signing internally,
+ * so no browser cookies or special headers are required.
  */
 
-import axios from 'axios';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { readFile, unlink, mkdir } from 'node:fs/promises';
 import { log } from 'crawlee';
 
-/** Maximum time (ms) to wait for a single video download. */
-const DOWNLOAD_TIMEOUT_MS = 120_000;
+const execAsync = promisify(execFile);
+
+/** Directory for temporary video files. */
+const TMP_DIR = '/tmp/tiktok-dl';
 
 /**
- * Browser-like request headers required by TikTok's CDN.
- * The Cookie header is merged in at call time.
- */
-const BASE_HEADERS = {
-    'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-        + 'AppleWebKit/537.36 (KHTML, like Gecko) '
-        + 'Chrome/124.0.0.0 Safari/537.36',
-    'Referer':         'https://www.tiktok.com/',
-    'Origin':          'https://www.tiktok.com',
-    'Accept':          'video/webm,video/ogg,video/*;q=0.9,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.5',
-    'Range':           'bytes=0-',
-};
-
-/**
- * Downloads a TikTok video from a direct CDN URL and returns its contents
- * as a Node.js `Buffer`.
+ * Downloads a TikTok video from its page URL and returns the MP4 as a Buffer.
  *
- * @param {string} downloadUrl - Direct CDN URL for the video (from `playAddr`).
- * @param {string} videoId     - TikTok video ID, used only for log messages.
- * @param {string} [cookies]   - Raw Cookie header string from the Playwright
- *   browser session. Required for the CDN to accept the request.
+ * @param {string} videoPageUrl - TikTok video page URL
+ *   (e.g. `https://www.tiktok.com/@user/video/123`).
+ * @param {string} videoId - Video ID, used for the temp file name and logging.
  * @returns {Promise<Buffer>} Raw MP4 file contents.
- * @throws {Error} If the HTTP request fails or times out.
+ * @throws {Error} If yt-dlp fails or the file cannot be read.
  */
-export async function downloadVideo(downloadUrl, videoId, cookies = '') {
-    log.info(`[${videoId}] Downloading MP4...`);
+export async function downloadVideo(videoPageUrl, videoId) {
+    await mkdir(TMP_DIR, { recursive: true });
 
-    const headers = {
-        ...BASE_HEADERS,
-        ...(cookies ? { Cookie: cookies } : {}),
-    };
+    const outputPath = `${TMP_DIR}/video-${videoId}.mp4`;
+    log.info(`[${videoId}] Downloading MP4 via yt-dlp...`);
 
-    const response = await axios.get(downloadUrl, {
-        responseType:   'arraybuffer',
-        headers,
-        timeout:        DOWNLOAD_TIMEOUT_MS,
-        maxRedirects:   10,
-        validateStatus: (status) => status === 200 || status === 206,
-    });
+    try {
+        await execAsync('yt-dlp', [
+            '-o', outputPath,
+            '--format', 'best[ext=mp4]/best',
+            '--no-warnings',
+            '--no-check-certificates',
+            videoPageUrl,
+        ], { timeout: 120_000 });
+    } catch (err) {
+        const msg = err.stderr?.trim() || err.message;
+        throw new Error(`yt-dlp download failed for ${videoId}: ${msg}`);
+    }
 
-    const buffer = Buffer.from(response.data);
+    const buffer = await readFile(outputPath);
+    await unlink(outputPath).catch(() => {});
+
     log.info(
         `[${videoId}] Download complete — ${(buffer.length / 1_048_576).toFixed(2)} MB`,
     );

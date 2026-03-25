@@ -1,18 +1,17 @@
 # Lightweight Node.js 20 image — no browser required.
-# CheerioCrawler performs plain HTTP requests to TikTok's SSR endpoint,
-# so Playwright / Chromium is not needed and the image stays small.
-# See: https://hub.docker.com/r/apify/actor-node
+# yt-dlp handles TikTok's API signing and CDN authentication internally.
 FROM apify/actor-node:20
 
-# Copy dependency manifest first to leverage Docker layer caching.
+# Copy dependency manifest first for Docker layer caching.
 COPY package*.json ./
+RUN npm install --omit=dev
 
-# Install production dependencies.
-RUN npm install --omit=dev && \
-    echo "Dependencies installed."
+# Install Python3 (yt-dlp runtime) and download yt-dlp itself.
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends python3 ca-certificates && \
+    python3 -c "import urllib.request; urllib.request.urlretrieve('https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp', '/usr/local/bin/yt-dlp')" && \
+    chmod +x /usr/local/bin/yt-dlp && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy the rest of the actor source code.
 COPY . ./
-
-# Default command executed when the container starts.
 CMD ["node", "src/main.js"]
