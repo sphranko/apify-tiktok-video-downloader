@@ -12,26 +12,38 @@
             "actorSpecification": 1,
             "views": {
                 "overview": {
-                    "title": "Videos Overview",
+                    "title": "Videos",
                     "transformation": {
                         "fields": [
-                            "id",
-                            "description",
-                            "createTime",
-                            "author",
-                            "stats",
-                            "url",
+                            "videoMeta.cover",
+                            "authorMeta.name",
+                            "text",
+                            "createTimeISO",
+                            "playCount",
+                            "diggCount",
+                            "commentCount",
+                            "shareCount",
+                            "videoMeta.duration",
+                            "musicMeta.musicName",
+                            "webVideoUrl",
                             "storageUrl"
                         ]
                     },
                     "display": {
                         "component": "table",
                         "properties": {
-                            "id":          { "label": "Video ID",    "format": "text" },
-                            "description": { "label": "Description", "format": "text" },
-                            "createTime":  { "label": "Created At",  "format": "date" },
-                            "url":         { "label": "TikTok URL",  "format": "link" },
-                            "storageUrl":  { "label": "MP4 Download","format": "link" }
+                            "videoMeta.cover":      { "label": "Cover",       "format": "image" },
+                            "authorMeta.name":      { "label": "Author",      "format": "text" },
+                            "text":                 { "label": "Description",  "format": "text" },
+                            "createTimeISO":        { "label": "Published",    "format": "text" },
+                            "playCount":            { "label": "Plays",        "format": "number" },
+                            "diggCount":            { "label": "Likes",        "format": "number" },
+                            "commentCount":         { "label": "Comments",     "format": "number" },
+                            "shareCount":           { "label": "Shares",       "format": "number" },
+                            "videoMeta.duration":   { "label": "Duration (s)", "format": "number" },
+                            "musicMeta.musicName":  { "label": "Music",        "format": "text" },
+                            "webVideoUrl":          { "label": "TikTok URL",   "format": "link" },
+                            "storageUrl":           { "label": "MP4 Download", "format": "link" }
                         }
                     }
                 }
