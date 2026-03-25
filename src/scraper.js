@@ -111,9 +111,12 @@ export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc',
     const username = extractUsername(profileUrl);
     log.info(`[scraper] Fetching videos for @${username} (limit: ${limit}, order: ${order})`);
 
-    // For descending (newest first) we only need `limit` items.
-    // For ascending we fetch a larger window so we can sort and take the oldest.
-    const fetchCount = order === 'asc' ? Math.min(limit * 5, 100) : limit;
+    // Fetch extra items to compensate for videos that yt-dlp skips (deleted,
+    // private, region-locked). The buffer is capped so we don't over-fetch.
+    const SKIP_BUFFER = 5;
+    const fetchCount = order === 'asc'
+        ? Math.min(limit * 5, 100)
+        : Math.min(limit + SKIP_BUFFER, 100);
 
     const args = [
         '--dump-json',
