@@ -12,4 +12,7 @@ RUN apk add --no-cache python3 && \
     chmod +x /usr/local/bin/yt-dlp
 
 COPY . ./
-CMD ["node", "src/main.js"]
+
+# Update yt-dlp to the latest version at each container startup, then run the actor.
+# This ensures TikTok extractor fixes are always applied without requiring a rebuild.
+CMD sh -c "yt-dlp -U --no-color 2>&1 | head -5 && node src/main.js"
