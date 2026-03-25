@@ -14,17 +14,17 @@
                 "overview": {
                     "title": "Videos",
                     "transformation": {
-                        "fields": [
-                            "videoMeta.cover",
-                            "authorMeta.name",
+                            "fields": [
+                            "video.cover",
+                            "author.name",
                             "text",
                             "createTimeISO",
                             "playCount",
                             "diggCount",
                             "commentCount",
                             "shareCount",
-                            "videoMeta.duration",
-                            "musicMeta.musicName",
+                            "video.duration",
+                            "music.name",
                             "webVideoUrl",
                             "storageUrl"
                         ]
@@ -32,16 +32,16 @@
                     "display": {
                         "component": "table",
                         "properties": {
-                            "videoMeta.cover":      { "label": "Cover",       "format": "image" },
-                            "authorMeta.name":      { "label": "Author",      "format": "text" },
+                            "video.cover":      { "label": "Cover",       "format": "image" },
+                            "author.name":      { "label": "Author",      "format": "text" },
                             "text":                 { "label": "Description",  "format": "text" },
                             "createTimeISO":        { "label": "Published",    "format": "text" },
                             "playCount":            { "label": "Plays",        "format": "number" },
                             "diggCount":            { "label": "Likes",        "format": "number" },
                             "commentCount":         { "label": "Comments",     "format": "number" },
                             "shareCount":           { "label": "Shares",       "format": "number" },
-                            "videoMeta.duration":   { "label": "Duration (s)", "format": "number" },
-                            "musicMeta.musicName":  { "label": "Music",        "format": "text" },
+                            "video.duration":   { "label": "Duration (s)", "format": "number" },
+                            "music.name":  { "label": "Music",        "format": "text" },
                             "webVideoUrl":          { "label": "TikTok URL",   "format": "link" },
                             "storageUrl":           { "label": "MP4 Download", "format": "link" }
                         }

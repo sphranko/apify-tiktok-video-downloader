@@ -89,8 +89,8 @@ Results are pushed to the **Apify Dataset**. Each record contains:
     "text": "Video caption #hashtag",
     "createTimeISO": "2024-04-25T10:30:00.000Z",
 
-    "authorMeta.name": "tiktok",
-    "authorMeta.avatar": "https://www.tiktok.com/channel/tiktok",
+    "author.name": "tiktok",
+    "author.avatar": "https://www.tiktok.com/channel/tiktok",
 
     "playCount":    1000000,
     "diggCount":    50000,
@@ -98,14 +98,14 @@ Results are pushed to the **Apify Dataset**. Each record contains:
     "shareCount":   800,
     "collectCount": 0,
 
-    "videoMeta.duration": 15,
-    "videoMeta.cover":    "https://p16-sign.tiktokcdn-us.com/...",
-    "videoMeta.width":    576,
-    "videoMeta.height":   1024,
+    "video.duration": 15,
+    "video.cover":    "https://p16-sign.tiktokcdn-us.com/...",
+    "video.width":    576,
+    "video.height":   1024,
 
-    "musicMeta.musicName":     "Original Sound",
-    "musicMeta.musicAuthor":   "tiktok",
-    "musicMeta.musicOriginal": true,
+    "music.musicName":     "Original Sound",
+    "music.musicAuthor":   "tiktok",
+    "music.musicOriginal": true,
 
     "webVideoUrl": "https://www.tiktok.com/@tiktok/video/7380123456789012345",
 

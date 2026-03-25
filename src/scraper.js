@@ -57,28 +57,34 @@ function normalizeYtDlpItem(item) {
         text:           String(item.description ?? item.title ?? ''),
         createTimeISO:  timestamp ? new Date(timestamp * 1000).toISOString() : null,
 
-        // Author
-        'authorMeta.name':   String(item.uploader ?? item.uploader_id ?? ''),
-        'authorMeta.avatar': String(item.channel_url ?? ''),
+        // Author (simplified)
+        author: {
+            name:   String(item.uploader ?? item.uploader_id ?? ''),
+            avatar: String(item.channel_url ?? ''),
+        },
 
-        // Stats
+        // Stats (kept flat for compatibility)
         playCount:    Number(item.view_count    ?? 0),
         diggCount:    Number(item.like_count    ?? 0),
         commentCount: Number(item.comment_count ?? 0),
         shareCount:   Number(item.repost_count  ?? 0),
         collectCount: 0,
 
-        // Video metadata
-        'videoMeta.duration': Number(item.duration ?? 0),
-        'videoMeta.cover':    String(thumbnail),
-        'videoMeta.width':    Number(item.width  ?? 0),
-        'videoMeta.height':   Number(item.height ?? 0),
+        // Video metadata (simplified)
+        video: {
+            duration: Number(item.duration ?? 0),
+            cover:    String(thumbnail),
+            width:    Number(item.width  ?? 0),
+            height:   Number(item.height ?? 0),
+        },
 
-        // Music metadata
-        'musicMeta.musicName':     String(item.track    ?? ''),
-        'musicMeta.musicAuthor':   String(item.artist   ?? ''),
-        'musicMeta.musicOriginal': Boolean(item.artist && item.uploader
-            && item.artist.toLowerCase() === item.uploader.toLowerCase()),
+        // Music metadata (simplified)
+        music: {
+            name:     String(item.track  ?? ''),
+            author:   String(item.artist ?? ''),
+            original: Boolean(item.artist && item.uploader
+                && item.artist.toLowerCase() === item.uploader.toLowerCase()),
+        },
 
         // URLs
         webVideoUrl: String(
@@ -148,7 +154,7 @@ export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc' 
         .map(normalizeYtDlpItem)
         .filter((v) => {
             if (!v) return false;
-            const author = v['authorMeta.name'].toLowerCase();
+            const author = (v.author?.name ?? '').toLowerCase();
             return !author || author === username.toLowerCase();
         });
 
