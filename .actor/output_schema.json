@@ -5,26 +5,30 @@
     "description": "Dataset record schema for a single TikTok video produced by the actor.",
     "type": "object",
     "properties": {
-        "id": { "type": "string", "description": "Video ID" },
-        "text": { "type": "string", "description": "Video caption/description" },
-        "createTimeISO": { "type": "string", "format": "date-time" },
+        "id": { "type": "string", "description": "Video ID", "template": "{{id}}" },
+        "text": { "type": "string", "description": "Video caption/description", "template": "{{text}}" },
+        "createTimeISO": { "type": "string", "format": "date-time", "template": "{{createTimeISO}}" },
 
         "author": {
             "type": "object",
+            "description": "Author information",
+            "template": "{{author.name}}",
             "properties": {
                 "name": { "type": "string" },
                 "avatar": { "type": "string", "format": "uri" }
             }
         },
 
-        "playCount": { "type": "integer" },
-        "diggCount": { "type": "integer" },
-        "commentCount": { "type": "integer" },
-        "shareCount": { "type": "integer" },
-        "collectCount": { "type": "integer" },
+        "playCount": { "type": "integer", "template": "{{playCount}}" },
+        "diggCount": { "type": "integer", "template": "{{diggCount}}" },
+        "commentCount": { "type": "integer", "template": "{{commentCount}}" },
+        "shareCount": { "type": "integer", "template": "{{shareCount}}" },
+        "collectCount": { "type": "integer", "template": "{{collectCount}}" },
 
         "video": {
             "type": "object",
+            "description": "Video metadata",
+            "template": "{{video.cover}}",
             "properties": {
                 "duration": { "type": "number" },
                 "cover": { "type": "string", "format": "uri" },
@@ -35,6 +39,8 @@
 
         "music": {
             "type": "object",
+            "description": "Music / sound metadata",
+            "template": "{{music.name}}",
             "properties": {
                 "name": { "type": "string" },
                 "author": { "type": "string" },
@@ -42,10 +48,10 @@
             }
         },
 
-        "webVideoUrl": { "type": "string", "format": "uri" },
+        "webVideoUrl": { "type": "string", "format": "uri", "template": "{{webVideoUrl}}" },
 
-        "storageKey": { "type": "string" },
-        "storageUrl": { "type": "string", "format": "uri" }
+        "storageKey": { "type": "string", "template": "{{storageKey}}" },
+        "storageUrl": { "type": "string", "format": "uri", "template": "{{storageUrl}}" }
     },
     "required": ["id", "webVideoUrl"]
 }
