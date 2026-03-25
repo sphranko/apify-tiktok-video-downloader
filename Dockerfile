@@ -1,13 +1,12 @@
-# Base image: Apify's Node.js 20 image with Playwright + Chromium pre-installed.
-# See: https://hub.docker.com/r/apify/actor-node-playwright-chrome
-FROM apify/actor-node-playwright-chrome:20
+# Lightweight Node.js 20 base image — no browser needed since scraping and
+# downloading are handled via HTTP requests to the tikwm.com API.
+# See: https://hub.docker.com/r/apify/actor-node
+FROM apify/actor-node:20
 
 # Copy dependency manifest first to leverage Docker layer caching.
 COPY package*.json ./
 
-# Install Node dependencies.
-# --omit=dev keeps the image lean; Playwright browser binaries are already
-# bundled in the base image so we skip the post-install download step.
+# Install production dependencies only.
 RUN npm install --omit=dev && \
     echo "Dependencies installed."
 

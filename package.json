@@ -9,7 +9,6 @@
     },
     "dependencies": {
         "apify": "^3.2.2",
-        "crawlee": "^3.10.0",
         "axios": "^1.7.2"
     },
     "engines": {
