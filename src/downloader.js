@@ -8,7 +8,7 @@
  */
 
 import axios from 'axios';
-import { Actor } from 'apify';
+import { log } from 'crawlee';
 
 /** Maximum time (ms) to wait for a single video download. */
 const DOWNLOAD_TIMEOUT_MS = 120_000;
@@ -37,7 +37,7 @@ const HEADERS = {
  * @throws {Error} If the HTTP request fails or times out.
  */
 export async function downloadVideo(downloadUrl, videoId) {
-    Actor.log.info(`[${videoId}] Downloading MP4...`);
+    log.info(`[${videoId}] Downloading MP4...`);
 
     const response = await axios.get(downloadUrl, {
         responseType:   'arraybuffer',
@@ -48,7 +48,7 @@ export async function downloadVideo(downloadUrl, videoId) {
     });
 
     const buffer = Buffer.from(response.data);
-    Actor.log.info(
+    log.info(
         `[${videoId}] Download complete — ${(buffer.length / 1_048_576).toFixed(2)} MB`,
     );
     return buffer;

@@ -22,6 +22,7 @@
  */
 
 import { Actor } from 'apify';
+import { log } from 'crawlee';
 import { scrapeUserVideos } from './scraper.js';
 import { downloadVideo }    from './downloader.js';
 
@@ -56,7 +57,7 @@ await Actor.main(async () => {
         throw new Error('"order" must be either "asc" or "desc".');
     }
 
-    Actor.log.info(
+    log.info(
         `Starting actor — profiles: ${profileUrls.length}, `
         + `limit: ${limit}, order: ${order}, downloadVideos: ${downloadVideos}`,
     );
@@ -71,18 +72,18 @@ await Actor.main(async () => {
     // 3. Process each profile.
     // ------------------------------------------------------------------
     for (const profileUrl of profileUrls) {
-        Actor.log.info(`\n=== Processing profile: ${profileUrl} ===`);
+        log.info(`\n=== Processing profile: ${profileUrl} ===`);
 
         // 3a. Fetch video list via tikwm.com.
         let videos;
         try {
             videos = await scrapeUserVideos(profileUrl, { limit, order });
         } catch (err) {
-            Actor.log.error(`Failed to scrape "${profileUrl}": ${err.message}`);
+            log.error(`Failed to scrape "${profileUrl}": ${err.message}`);
             continue;
         }
 
-        Actor.log.info(`Found ${videos.length} video(s) for "${profileUrl}".`);
+        log.info(`Found ${videos.length} video(s) for "${profileUrl}".`);
 
         // 3b. Optionally download each video and push the record to the dataset.
         for (const video of videos) {
@@ -100,9 +101,9 @@ await Actor.main(async () => {
                     record.storageUrl =
                         `${APIFY_API_BASE}/v2/key-value-stores/${store.id}/records/${storageKey}`;
 
-                    Actor.log.info(`[${video.id}] Saved to KV store — key: "${storageKey}"`);
+                    log.info(`[${video.id}] Saved to KV store — key: "${storageKey}"`);
                 } catch (err) {
-                    Actor.log.error(
+                    log.error(
                         `[${video.id}] Download failed: ${err.message}. `
                         + 'Record will be saved without a storageUrl.',
                     );
@@ -113,5 +114,5 @@ await Actor.main(async () => {
         }
     }
 
-    Actor.log.info('Actor finished successfully.');
+    log.info('Actor finished successfully.');
 });

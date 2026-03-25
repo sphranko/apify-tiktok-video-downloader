@@ -14,7 +14,7 @@
  */
 
 import axios from 'axios';
-import { Actor } from 'apify';
+import { log } from 'crawlee';
 
 /** tikwm.com base URL. */
 const TIKWM_BASE = 'https://www.tikwm.com';
@@ -106,7 +106,7 @@ export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc' 
     const videos   = [];
     let cursor     = 0;
 
-    Actor.log.info(`[scraper] Fetching videos for @${username} (limit: ${limit}, order: ${order})`);
+    log.info(`[scraper] Fetching videos for @${username} (limit: ${limit}, order: ${order})`);
 
     while (videos.length < limit) {
         const response = await axios.get(`${TIKWM_BASE}/api/user/posts`, {
@@ -130,7 +130,7 @@ export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc' 
         const items = payload.data?.videos ?? [];
 
         if (!items.length) {
-            Actor.log.info(`[scraper] No more videos returned by API (cursor: ${cursor}).`);
+            log.info(`[scraper] No more videos returned by API (cursor: ${cursor}).`);
             break;
         }
 
@@ -139,7 +139,7 @@ export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc' 
             if (v.id && v.video.downloadUrl) videos.push(v);
         }
 
-        Actor.log.info(
+        log.info(
             `[scraper] Page fetched — got ${items.length} item(s), `
             + `total so far: ${videos.length}`,
         );
@@ -149,7 +149,7 @@ export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc' 
         cursor = payload.data.cursor;
     }
 
-    Actor.log.info(`[scraper] Collection complete — ${videos.length} video(s) before sort/limit.`);
+    log.info(`[scraper] Collection complete — ${videos.length} video(s) before sort/limit.`);
 
     videos.sort((a, b) =>
         order === 'asc'
