@@ -1,4 +1,5 @@
 {
+    "actorOutputSchemaVersion": 1,
     "schemaVersion": 1,
     "title": "TikTok Video record",
     "description": "Dataset record schema for a single TikTok video produced by the actor.",
