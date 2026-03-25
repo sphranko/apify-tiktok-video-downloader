@@ -109,14 +109,17 @@ export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc' 
     log.info(`[scraper] Fetching videos for @${username} (limit: ${limit}, order: ${order})`);
 
     while (videos.length < limit) {
-        const response = await axios.post(`${TIKWM_BASE}/api/user/posts`, null, {
-            params: {
-                unique_id: `@${username}`,
-                count:     PAGE_SIZE,
-                cursor,
-                hd:        1,
-            },
+        // tikwm requires POST with application/x-www-form-urlencoded body.
+        const body = new URLSearchParams({
+            unique_id: `@${username}`,
+            count:     String(PAGE_SIZE),
+            cursor:    String(cursor),
+            hd:        '1',
+        });
+
+        const response = await axios.post(`${TIKWM_BASE}/api/user/posts`, body, {
             headers: {
+                'Content-Type':    'application/x-www-form-urlencoded',
                 'User-Agent':      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                 'Referer':         'https://www.tikwm.com/',
                 'Origin':          'https://www.tikwm.com',
