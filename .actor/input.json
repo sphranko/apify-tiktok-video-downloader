@@ -1,0 +1,7 @@
+
+{
+  "profileUrls": ["https://www.tiktok.com/@tiktok"],
+  "limit": 1,
+  "order": "desc",
+  "downloadVideos": true
+}
