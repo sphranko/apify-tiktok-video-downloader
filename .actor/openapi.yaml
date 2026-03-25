@@ -1,0 +1,264 @@
+openapi: 3.0.3
+info:
+  title: TikTok Video Scraper & Downloader - Live API
+  version: 1.0.0
+  description: >-
+    Minimal OpenAPI schema for the actor's live-view web server. The API
+    allows clients to start scraping jobs (async or sync), check job status,
+    query individual video records and obtain download redirects when
+    available.
+
+servers:
+  - url: /
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns a short status of the running actor process.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+
+  /scrape:
+    post:
+      summary: Start an asynchronous scrape job
+      description: >-
+        Start scraping one or more TikTok profiles. This endpoint accepts the
+        same input as the actor's input form and returns a job identifier.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Input'
+      responses:
+        '202':
+          description: Job accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobAccepted'
+        '400':
+          description: Invalid input
+
+  /scrape/sync:
+    post:
+      summary: Run a synchronous scrape and return results
+      description: >-
+        Runs the scrape immediately and returns the dataset records. Use only
+        for small jobs or interactive sessions — long-running requests may
+        time out.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Input'
+      responses:
+        '200':
+          description: Scrape results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  videos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/VideoRecord'
+        '400':
+          description: Invalid input
+        '503':
+          description: Service unavailable / job timed out
+
+  /scrape/{runId}:
+    get:
+      summary: Get job status and (optionally) results
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobStatus'
+        '404':
+          description: Job not found
+
+  /videos/{id}:
+    get:
+      summary: Get a single video record by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Video record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoRecord'
+        '404':
+          description: Video not found
+
+  /videos/{id}/download:
+    get:
+      summary: Redirect to MP4 download URL
+      description: >-
+        If the MP4 for the requested video is stored, this endpoint responds
+        with a 302 redirect to the `storageUrl`. If the file is not present,
+        returns 404.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to MP4
+        '404':
+          description: MP4 not available
+
+components:
+  schemas:
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+          example: running
+        uptime:
+          type: number
+          description: Uptime in seconds
+
+    Input:
+      type: object
+      properties:
+        profileUrls:
+          type: array
+          items:
+            type: string
+            format: uri
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+        order:
+          type: string
+          enum: ["desc", "asc"]
+          default: "desc"
+        downloadVideos:
+          type: boolean
+          default: true
+      required: ["profileUrls"]
+
+    JobAccepted:
+      type: object
+      properties:
+        runId:
+          type: string
+        status:
+          type: string
+          example: accepted
+
+    JobStatus:
+      type: object
+      properties:
+        runId:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, finished, failed]
+        createdAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+        progress:
+          type: object
+          properties:
+            videosFound:
+              type: integer
+            videosProcessed:
+              type: integer
+            videosDownloaded:
+              type: integer
+        resultUrl:
+          type: string
+          format: uri
+
+    VideoRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+        createTimeISO:
+          type: string
+          format: date-time
+        author:
+          type: object
+          properties:
+            name:
+              type: string
+            avatar:
+              type: string
+              format: uri
+        playCount:
+          type: integer
+        diggCount:
+          type: integer
+        commentCount:
+          type: integer
+        shareCount:
+          type: integer
+        collectCount:
+          type: integer
+        video:
+          type: object
+          properties:
+            duration:
+              type: number
+            cover:
+              type: string
+              format: uri
+            width:
+              type: integer
+            height:
+              type: integer
+        music:
+          type: object
+          properties:
+            name:
+              type: string
+            author:
+              type: string
+            original:
+              type: boolean
+        webVideoUrl:
+          type: string
+          format: uri
+        storageKey:
+          type: string
+        storageUrl:
+          type: string
+          format: uri
+      required: ["id", "webVideoUrl"]
+

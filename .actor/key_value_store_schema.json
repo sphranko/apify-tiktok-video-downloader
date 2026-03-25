@@ -1,0 +1,11 @@
+
+{
+  "schemaVersion": 1,
+  "title": "Key-Value Store schema",
+  "description": "Schema for keys created by the actor (MP4 files).",
+  "type": "object",
+  "properties": {
+	"storageKey": { "type": "string" },
+	"contentType": { "type": "string", "enum": ["video/mp4"] }
+  }
+}

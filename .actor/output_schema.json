@@ -1,0 +1,51 @@
+{
+    "schemaVersion": 1,
+    "title": "TikTok Video record",
+    "description": "Dataset record schema for a single TikTok video produced by the actor.",
+    "type": "object",
+    "properties": {
+        "id": { "type": "string", "description": "Video ID" },
+        "text": { "type": "string", "description": "Video caption/description" },
+        "createTimeISO": { "type": "string", "format": "date-time" },
+
+        "author": {
+            "type": "object",
+            "properties": {
+                "name": { "type": "string" },
+                "avatar": { "type": "string", "format": "uri" }
+            }
+        },
+
+        "playCount": { "type": "integer" },
+        "diggCount": { "type": "integer" },
+        "commentCount": { "type": "integer" },
+        "shareCount": { "type": "integer" },
+        "collectCount": { "type": "integer" },
+
+        "video": {
+            "type": "object",
+            "properties": {
+                "duration": { "type": "number" },
+                "cover": { "type": "string", "format": "uri" },
+                "width": { "type": "integer" },
+                "height": { "type": "integer" }
+            }
+        },
+
+        "music": {
+            "type": "object",
+            "properties": {
+                "name": { "type": "string" },
+                "author": { "type": "string" },
+                "original": { "type": "boolean" }
+            }
+        },
+
+        "webVideoUrl": { "type": "string", "format": "uri" },
+
+        "storageKey": { "type": "string" },
+        "storageUrl": { "type": "string", "format": "uri" }
+    },
+    "required": ["id", "webVideoUrl"]
+}
+

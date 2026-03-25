@@ -6,7 +6,9 @@
     "version": "1.0",
     "buildTag": "latest",
     "dockerfile": "../Dockerfile",
-    "input": "../.actor/input_schema.json",
+    "input": "./input_schema.json",
+    "output": "./output_schema.json",
+    "keyValueStore": "./key_value_store_schema.json",
     "storages": {
         "dataset": {
             "actorSpecification": 1,
