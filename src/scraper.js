@@ -159,13 +159,10 @@ export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc' 
                     window.chrome = { runtime: {} };
                 });
 
-                // ── Route interception — profile video list endpoints only ────
-                // Targeting item_list and user/post avoids catching suggested
-                // content, ads, or other accounts' videos that TikTok also loads
-                // on a profile page.
-                // page.route() gives exclusive response-body access so
-                // response.text() never throws "body already consumed".
-                await page.route(/tiktok\.com\/api\/(post\/item_list|user\/post)/, async (route) => {
+                // ── Route interception — all TikTok API responses ─────────────
+                // We log every intercepted path so we can identify which
+                // endpoint(s) TikTok uses for the profile video list.
+                await page.route(/tiktok\.com\/api\//, async (route) => {
                     let response;
                     try {
                         response = await route.fetch();
@@ -178,24 +175,30 @@ export async function scrapeUserVideos(profileUrl, { limit = 10, order = 'desc' 
                     let text = '';
                     try { text = await response.text(); } catch { /* ignore */ }
 
+                    const path = new URL(route.request().url()).pathname;
+
                     if (text.trimStart().startsWith('{')) {
                         try {
                             const data  = JSON.parse(text);
                             const items = extractFromApiPayload(data);
 
-                            // Keep only videos that belong to the target profile.
-                            const own = items.filter(
-                                (v) => !v.author.uniqueId
-                                    || v.author.uniqueId.toLowerCase() === username.toLowerCase(),
-                            );
-
-                            if (own.length) {
-                                for (const v of own) videoMap.set(v.id, v);
-                                log.debug(
-                                    `[${username}] Intercepted ${own.length} item(s) from `
-                                    + `${new URL(route.request().url()).pathname} `
-                                    + `(total: ${videoMap.size})`,
+                            if (items.length) {
+                                // Log every endpoint that yields video items so we
+                                // can narrow the pattern once the correct one is known.
+                                log.info(
+                                    `[${username}] ${path} → ${items.length} item(s) `
+                                    + `(authors: ${[...new Set(items.map((v) => v.author.uniqueId))].join(', ')})`,
                                 );
+
+                                // Keep only videos that belong to the target profile.
+                                const own = items.filter(
+                                    (v) => !v.author.uniqueId
+                                        || v.author.uniqueId.toLowerCase() === username.toLowerCase(),
+                                );
+                                for (const v of own) videoMap.set(v.id, v);
+                                log.debug(`[${username}] Kept ${own.length} own video(s) (total: ${videoMap.size})`);
+                            } else {
+                                log.debug(`[${username}] ${path} → no video items (status ${response.status()})`);
                             }
                         } catch { /* malformed JSON — ignore */ }
                     }
